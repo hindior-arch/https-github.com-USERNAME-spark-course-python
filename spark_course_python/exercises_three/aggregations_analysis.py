@@ -1,8 +1,5 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql import types as T
-from pyspark.sql import Row
-from datetime import datetime, timedelta
 
 spark = SparkSession \
     .builder \
@@ -15,71 +12,38 @@ spark = SparkSession \
 flights_df = spark.read.parquet('spark_course_python/data/transformed/flights/')
 airports_df = spark.read.parquet('spark_course_python/data/source/airports/')
 
+flights_df.printSchema()
+airports_df.printSchema()
 
-#flights_df.printSchema()
-#flights_df.show(5)
+flights_df \
+    .groupBy(F.col('origin_airport_id').alias('airport_id')) \
+    .agg(F.count(F.lit(1)).alias('number_of_departures')) \
+    .join(airports_df.select(F.col('airport_id'), F.col('name').alias('airport_name')),
+['airport_id']) \
+.orderBy(F.col('number_of_departures').desc()) \
+.show(10, False)
 
-#filtered_df = flights_df.filter(F.col("origin_airport_id") == 10299)
-#filtered_df.show()
+flights_df \
+    .groupBy(F.col('dest_airport_id').alias('airport_id')) \
+    .agg(F.count(F.lit(1)).alias('number_of_arrivals')) \
+    .join(airports_df.select(F.col('airport_id'), F.col('name').alias('airport_name')),
+['airport_id']) \
+.orderBy(F.col('number_of_arrivals').desc()) \
+.show(10, False)
 
-def airports_departures():
-    """
-    Calculate the number of departures for each airport and display the top airports by number of departures.
-    """
-    number_of_departures_df = flights_df \
-        .groupBy('origin_airport_id') \
-        .agg(F.count('*').alias('number_of_departures')) \
-        .withColumnRenamed('origin_airport_id', 'airport_id') 
-
-    top_airport_departures_df = number_of_departures_df \
-        .join(
-            airports_df,
-            number_of_departures_df.airport_id == airports_df.airport_id,
-            "inner"
-        ) \
-        .select(
-            number_of_departures_df["airport_id"],
-            number_of_departures_df["number_of_departures"],
-            airports_df["name"].alias("airport_name")
-        ) \
-        .orderBy(F.desc("number_of_departures"))
-
-    return top_airport_departures_df
-
-def airports_arrivals():
-    """
-    Calculate the number of arrivals for each airport and display the top airports by number of arrivals.
-    """   
-    number_of_arrivals_df = flights_df \
-            .groupBy('dest_airport_id') \
-            .agg(F.count('*').alias('number_of_arrivals')) \
-            .withColumnRenamed('dest_airport_id', 'airport_id') 
-    
-    top_airport_arrivals_df = number_of_arrivals_df \
-            .join(
-                airports_df,
-                number_of_arrivals_df.airport_id == airports_df.airport_id,
-                "inner"
-            ) \
-            .select(
-                number_of_arrivals_df["airport_id"],
-                number_of_arrivals_df["number_of_arrivals"],
-                airports_df["name"].alias("airport_name")
-            ) \
-            .orderBy(F.desc("number_of_arrivals"))
-    
-    return top_airport_arrivals_df
-
-
-#airports_departures().show()
-airports_arrivals().show()
-
-
-
-#airports_df.printSchema()
-
-
-
+flights_df \
+    .groupBy(F.col('origin_airport_id').alias('source_airport_id'), F.col('dest_airport_id').alias('dest_airport_id')) \
+    .agg(F.count(F.lit(1)).alias('number_of_tracks')) \
+    .join(airports_df.select(F.col('airport_id').alias('source_airport_id'),
+            F.col('name').alias('source_airport_name')),
+        ['source_airport_id']) \
+    .join(airports_df.select(F.col('airport_id').alias('dest_airport_id'),
+            F.col('name').alias('dest_airport_name')),
+        ['dest_airport_id']) \
+    .select(F.concat(F.col('source_airport_name'), F.lit(' -> '), F.col('dest_airport_name')).alias('track'),
+        F.col('number_of_tracks')) \
+    .orderBy(F.col('number_of_tracks').desc())\
+    .show(10, False)
 
 
 spark.stop()
