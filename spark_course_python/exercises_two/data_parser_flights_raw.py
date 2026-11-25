@@ -13,6 +13,7 @@ flight_df = flights_raw_df.select(
     F.col('DestAirportID').cast(T.IntegerType()).alias('dest_airport_id'),
     F.col('DepDelay').cast(T.IntegerType()).alias('dep_delay'),
     F.col('ArrDelay').cast(T.IntegerType()).alias('arr_delay'))
+
 flight_df.write.parquet('spark_course_python/data/source/flights_raw/', mode='overwrite')
 
 spark.stop()
